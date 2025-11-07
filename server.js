@@ -8,7 +8,7 @@ const app = express();
 
 /* 🔐 FILL THESE BEFORE STARTING THE SERVER (DO NOT SHARE) */
 const STRIPE_SECRET_KEY = "";           // From Stripe Dashboard (Secret key)
-const ENDPOINT_SECRET   = "whsec_6c3314585d68f1f7ac003bf04eee96b5f1c0a01127f70a9ce107253a75617a24";        // From `stripe listen` output (NOT dashboard unless you use ngrok)
+const ENDPOINT_SECRET   = "stripe listen";        // From `stripe listen` output (NOT dashboard unless you use ngrok)
 const DISCORD_WEBHOOK   = "https://discord.com/api/webhooks/xxx/yyy";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
@@ -66,3 +66,4 @@ app.get("/health", (_req, res) => res.send("OK"));
 
 const PORT = 8787;
 app.listen(PORT, () => console.log(`✅ Webhook listening on http://localhost:${PORT}/stripe-webhook`));
+
