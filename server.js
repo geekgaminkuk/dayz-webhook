@@ -8,7 +8,7 @@ const dgram = require("dgram");
 const app = express();
 
 // ✅ Load secrets from Render environment variables
-const STRIPE_SECRET_KEY = ;  // sk_test_... or sk_live_...
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;  // sk_test_... or sk_live_...
 const ENDPOINT_SECRET   = whsec_xjjHESaT4BGVZadqzzuX3x8L8zgB8rRD;    // whsec_...
 const DISCORD_WEBHOOK   = process.env.DISCORD_WEBHOOK;    // Discord webhook URL
 
@@ -111,3 +111,4 @@ const PORT = process.env.PORT || 8787;
 app.listen(PORT, () =>
   console.log(`✅ Webhook live on port ${PORT} — /stripe-webhook & /api/server-stats`)
 );
+
