@@ -7,18 +7,18 @@ const dgram = require("dgram");
 
 const app = express();
 
-// ✅ Load secrets from Render environment variables
-const STRIPE_SECRET_KEY = "sk_test_51SMoks8ZCpeFomKseZs7XDBsu3nZeeUd1bdZRIP4mT6mxMefeAhLwQVoyG9AmnQF5O3dt8KRv21jj8L1dft3Gxop003rIdzWO1";  // sk_test_... or sk_live_...
-const ENDPOINT_SECRET   = "whsec_xjjHESaT4BGVZadqzzuX3x8L8zgB8rRD";    // whsec_...
-const DISCORD_WEBHOOK   = "process.env.DISCORD_WEBHOOK";    // Discord webhook URL
+// ✅ READ KEYS FROM ENVIRONMENT (Render → Environment variables)
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const ENDPOINT_SECRET   = process.env.ENDPOINT_SECRET;
+const DISCORD_WEBHOOK   = process.env.DISCORD_WEBHOOK;
 
 const stripe = new Stripe(STRIPE_SECRET_KEY);
 
-// ✅ Stripe webhook — MUST use raw body
+// ✅ STRIPE WEBHOOK — MUST BE FIRST AND RAW
 app.post("/stripe-webhook", express.raw({ type: "application/json" }), (req, res) => {
   const sig = req.headers["stripe-signature"];
-  let event;
 
+  let event;
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, ENDPOINT_SECRET);
   } catch (err) {
@@ -26,15 +26,16 @@ app.post("/stripe-webhook", express.raw({ type: "application/json" }), (req, res
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
+  // ✅ Payment success handler
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const email   = session.customer_details?.email;
+    const email = session.customer_details?.email;
     const product = session.metadata?.product;
     const steamId = session.metadata?.steamId;
 
     console.log(`✅ PAYMENT: ${email} bought ${product} (SteamID: ${steamId || "none"})`);
 
-    // ✅ 1. Discord notification
+    // ✅ Discord
     if (DISCORD_WEBHOOK) {
       fetch(DISCORD_WEBHOOK, {
         method: "POST",
@@ -48,23 +49,17 @@ SteamID: ${steamId || "n/a"}`
       }).catch(err => console.log("Discord webhook error:", err.message));
     }
 
-    // ✅ 2. Whitelist append
-    if (steamId) {
-      fs.appendFile("whitelist.txt", `${steamId}\n`, (err) => {
-        if (err) console.log("Whitelist write error:", err.message);
-      });
-    }
-
-    // ✅ 3. VIP + reserved slot
-    if (steamId && (product === "vip" || product === "reserved-slot")) {
-      fs.appendFile("reserved.txt", `${steamId}\n`, (err) => {
-        if (err) console.log("Reserved write error:", err.message);
-      });
-    }
+    // ✅ Whitelist
+    if (steamId) fs.appendFileSync("whitelist.txt", `${steamId}\n`);
+    if (steamId && (product === "vip" || product === "reserved-slot"))
+      fs.appendFileSync("reserved.txt", `${steamId}\n`);
   }
 
   res.sendStatus(200);
 });
+
+// ✅ AFTER WEBHOOK — JSON BODY OK
+app.use(express.json());
 
 // ✅ LIVE SERVER STATS
 function queryDayZServer(ip, port = 27016) {
@@ -76,17 +71,13 @@ function queryDayZServer(ip, port = 27016) {
     client.on("message", (msg) => {
       responded = true;
       client.close();
-
       const data = msg.toString("utf8", 6).split("\0");
-      const players = msg[msg.length - 2];
-      const maxPlayers = msg[msg.length - 1];
-
       resolve({
         online: true,
         name: data[0],
         map: data[1],
-        players,
-        maxPlayers
+        players: msg[msg.length - 2],
+        maxPlayers: msg[msg.length - 1]
       });
     });
 
@@ -96,21 +87,15 @@ function queryDayZServer(ip, port = 27016) {
 }
 
 app.get("/api/server-stats", async (req, res) => {
-  const ip = "193.25.252.44";    // ✅ Your server IP
-  const queryPort = 27016;       // ✅ Query port = game port + 14 (2302 + 14)
-
-  const stats = await queryDayZServer(ip, queryPort);
+  const stats = await queryDayZServer("193.25.252.44", 27016);
   res.json(stats);
 });
 
 // ✅ Health check
 app.get("/health", (req, res) => res.send("OK"));
 
-// ✅ Use Render PORT or fallback to 8787 locally
-const PORT = process.env.PORT || 8787;
+// ✅ Correct port
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () =>
-  console.log(`✅ Webhook live on port ${PORT} — /stripe-webhook & /api/server-stats`)
+  console.log(`✅ Webhook running on port ${PORT}`)
 );
-
-
-
